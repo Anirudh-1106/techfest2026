@@ -194,8 +194,6 @@ Security checks repeated against the live API: injection rejected, cross-site PO
 
 ![Live security](screenshots/live04_security_checks.png)
 
-A new account registered on the live site appears in the Atlas `users` collection with a bcrypt-hashed password (screenshot `live05_atlas_user.png`).
-
 **Deployed pages (desktop Chrome):**
 
 ![Home](screenshots/live_site01_home.png)
