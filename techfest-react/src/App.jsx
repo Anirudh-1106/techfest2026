@@ -3,6 +3,7 @@ import { useContext, lazy, Suspense } from "react";
 
 import "./App.css";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import { ThemeContext } from "./context/ThemeContext";
 
@@ -35,6 +36,8 @@ function App() {
                         <Route path="*" element={<NotFound />} />
                     </Routes>
                 </Suspense>
+
+                <Footer />
             </BrowserRouter>
         </div>
     );
