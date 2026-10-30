@@ -22,11 +22,12 @@ function requireStrings(...fields) {
   };
 }
 
-// Slow down password guessing: 10 login attempts per 15 minutes per account.
+// Slow down password guessing: 10 failed logins per 15 minutes per account.
 // Keyed by email because requests arrive through the Netlify proxy (shared IP).
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
+  skipSuccessfulRequests: true,
   keyGenerator: (req) =>
     typeof req.body.email === "string"
       ? "email:" + req.body.email.trim().toLowerCase()
