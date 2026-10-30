@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const rateLimit = require("express-rate-limit");
+const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
 const { body, validationResult } = require("express-validator");
 const User = require("../models/User");
 const cookieOptions = require("../config/cookie");
@@ -22,10 +22,15 @@ function requireStrings(...fields) {
   };
 }
 
-// Slow down password guessing: 10 login attempts per 15 minutes per IP
+// Slow down password guessing: 10 login attempts per 15 minutes per account.
+// Keyed by email because requests arrive through the Netlify proxy (shared IP).
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
+  keyGenerator: (req) =>
+    typeof req.body.email === "string"
+      ? "email:" + req.body.email.trim().toLowerCase()
+      : ipKeyGenerator(req.ip),
   message: { message: "Too many login attempts, try again later" }
 });
 
