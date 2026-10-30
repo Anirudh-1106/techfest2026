@@ -1720,3 +1720,19 @@ button:disabled {
     }
 
 }
+
+/* =========================================
+   FOOTER
+========================================= */
+
+.site-footer {
+    padding: 28px 20px;
+
+    text-align: center;
+
+    font-size: 14px;
+
+    color: #c7c1b7;
+
+    background-color: #252525;
+}
