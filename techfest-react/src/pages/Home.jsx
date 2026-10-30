@@ -62,7 +62,7 @@ function Home() {
                 <div className="hero-content">
 
                     <p className="hero-eyebrow">
-                        STUDENT TECHNOLOGY FESTIVAL
+                        NATIONAL LEVEL TECHNOLOGY FESTIVAL
                     </p>
 
 
