@@ -5,7 +5,7 @@ describe("API basics", () => {
   test("health check returns healthy", async () => {
     const res = await request(app).get("/api/health");
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("ok");
+    expect(res.body.status).toBe("healthy");
   });
 
   test("unknown route returns 404", async () => {
