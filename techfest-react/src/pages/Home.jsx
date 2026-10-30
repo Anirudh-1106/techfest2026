@@ -106,11 +106,7 @@ function Home() {
                 </div>
 
 
-                <div className="hero-number">
-
-                    26
-
-                </div>
+                <div className="hero-number" aria-hidden="true"></div>
 
             </section>
 
@@ -349,7 +345,7 @@ function Home() {
 
             <section className="home-cta">
 
-                <div className="cta-number">
+                <div className="cta-number" aria-hidden="true">
                     2026
                 </div>
 

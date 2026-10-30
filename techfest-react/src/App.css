@@ -280,6 +280,12 @@ main {
 }
 
 
+/* Decorative watermark - drawn by CSS so it is not read as page text */
+.hero-number::before {
+    content: "26";
+}
+
+
 /* =========================================
    ABOUT SECTION
 ========================================= */
@@ -1401,7 +1407,12 @@ button:disabled {
 
     font-weight: 700;
 
-    color: #c37a43;
+    color: #8f4a1c;
+}
+
+
+.activities-section .section-label {
+    color: #e8b48a;
 }
 
 
@@ -1480,7 +1491,7 @@ button:disabled {
 
     font-weight: 700;
 
-    color: #c37a43;
+    color: #f0c29c;
 }
 
 
@@ -1547,9 +1558,7 @@ button:disabled {
 
     letter-spacing: -5px;
 
-    color: #a85d2a;
-
-    opacity: 0.9;
+    color: #7a3f16;
 }
 
 
@@ -1562,7 +1571,7 @@ button:disabled {
 
     letter-spacing: 2px;
 
-    color: #6e675d;
+    color: #4f4a42;
 }
 
 
