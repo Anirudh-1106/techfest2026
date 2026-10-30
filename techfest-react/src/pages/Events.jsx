@@ -57,6 +57,7 @@ function Events() {
             <div className="search-container">
                 <input
                     type="text"
+                    aria-label="Search events"
                     placeholder="Search events..."
                     value={searchText}
                     onChange={function (event) {
@@ -65,6 +66,7 @@ function Events() {
                 />
 
                 <select
+                    aria-label="Filter by category"
                     value={selectedCategory}
                     onChange={function (event) {
                         setSelectedCategory(event.target.value);
@@ -101,6 +103,8 @@ function Events() {
                     No events match your criteria.
                 </p>
             )}
+
+            <h2 className="sr-only">Event list</h2>
 
             {!loading && !error && filteredEvents.length > 0 && (
                 <EventList events={filteredEvents} onEventRegistered={fetchEvents} />

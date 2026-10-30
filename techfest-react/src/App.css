@@ -1736,3 +1736,24 @@ button:disabled {
 
     background-color: #252525;
 }
+
+
+/* Keeps the footer in place while a lazy page loads (no layout shift) */
+.page-loading {
+    min-height: 100vh;
+}
+
+
+/* Visible to screen readers only */
+.sr-only {
+    position: absolute;
+
+    width: 1px;
+    height: 1px;
+
+    overflow: hidden;
+
+    clip: rect(0 0 0 0);
+
+    white-space: nowrap;
+}

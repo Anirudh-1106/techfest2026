@@ -24,7 +24,7 @@ function App() {
             <BrowserRouter>
                 <Navbar />
 
-                <Suspense fallback={<p className="loading-msg">Loading...</p>}>
+                <Suspense fallback={<main className="page-loading" aria-busy="true" />}>
                     <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/events" element={<Events />} />
