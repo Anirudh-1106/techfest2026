@@ -1,6 +1,7 @@
 import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { API_URL } from "../config";
 
 function Login() {
     const [email, setEmail] = useState("");
@@ -22,7 +23,7 @@ function Login() {
 
         setLoading(true);
         try {
-            const response = await fetch("http://localhost:5000/api/auth/login", {
+            const response = await fetch(`${API_URL}/api/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -40,7 +41,7 @@ function Login() {
             login(data.token, { name: data.name, role: data.role });
             navigate("/events");
         } catch (err) {
-            setError("Could not connect to server. Ensure backend is running.");
+            setError("Could not connect to server. Please try again.");
             setLoading(false);
         }
     }
@@ -56,9 +57,11 @@ function Login() {
                 {error && <p className="error-msg" style={{ marginBottom: "20px" }}>{error}</p>}
 
                 <div>
-                    <label>Email Address</label>
+                    <label htmlFor="login-email">Email Address</label>
                     <input
+                        id="login-email"
                         type="email"
+                        autoComplete="email"
                         value={email}
                         placeholder="e.g. student@techfest.com"
                         onChange={(e) => setEmail(e.target.value)}
@@ -66,9 +69,11 @@ function Login() {
                 </div>
 
                 <div>
-                    <label>Password</label>
+                    <label htmlFor="login-password">Password</label>
                     <input
+                        id="login-password"
                         type="password"
+                        autoComplete="current-password"
                         value={password}
                         placeholder="Enter your password"
                         onChange={(e) => setPassword(e.target.value)}

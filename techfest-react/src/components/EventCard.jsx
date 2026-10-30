@@ -2,6 +2,7 @@ import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
 import { AuthContext } from "../context/AuthContext";
+import { API_URL } from "../config";
 
 function EventCard({ id, name, fee, seats, onRegistered }) {
     const [seatsLeft, setSeatsLeft] = useState(seats);
@@ -10,7 +11,7 @@ function EventCard({ id, name, fee, seats, onRegistered }) {
     const [isError, setIsError] = useState(false);
 
     const { addToCart } = useContext(CartContext);
-    const { token, isLoggedIn } = useContext(AuthContext);
+    const { authHeaders, isLoggedIn } = useContext(AuthContext);
     const navigate = useNavigate();
 
     async function handleRegister() {
@@ -26,11 +27,12 @@ function EventCard({ id, name, fee, seats, onRegistered }) {
         setIsError(false);
 
         try {
-            const response = await fetch("http://localhost:5000/api/registrations", {
+            const response = await fetch(`${API_URL}/api/registrations`, {
                 method: "POST",
+                credentials: "include",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    ...authHeaders
                 },
                 body: JSON.stringify({ eventId: id })
             });

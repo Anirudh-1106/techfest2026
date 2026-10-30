@@ -2,21 +2,21 @@ import { useContext, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
 import { AuthContext } from "../context/AuthContext";
+import { API_URL } from "../config";
 
 function Cart() {
     const { cartItems } = useContext(CartContext);
-    const { token, isLoggedIn, user } = useContext(AuthContext);
+    const { authHeaders, isLoggedIn, user } = useContext(AuthContext);
 
     const [dbRegistrations, setDbRegistrations] = useState([]);
     const [loadingDb, setLoadingDb] = useState(false);
 
     useEffect(() => {
-        if (isLoggedIn && token) {
+        if (isLoggedIn) {
             setLoadingDb(true);
-            fetch("http://localhost:5000/api/registrations/my", {
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+            fetch(`${API_URL}/api/registrations/my`, {
+                credentials: "include",
+                headers: authHeaders
             })
                 .then((res) => res.json())
                 .then((data) => {
@@ -27,7 +27,7 @@ function Cart() {
                 })
                 .catch(() => setLoadingDb(false));
         }
-    }, [isLoggedIn, token]);
+    }, [isLoggedIn, authHeaders]);
 
     const totalFee = cartItems.reduce(
         function (total, event) {

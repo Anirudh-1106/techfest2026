@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import EventList from "../components/EventList";
+import { API_URL } from "../config";
 
 function Events() {
     const [events, setEvents] = useState([]);
@@ -11,7 +12,7 @@ function Events() {
 
     const fetchEvents = () => {
         setLoading(true);
-        fetch("http://localhost:5000/api/events")
+        fetch(`${API_URL}/api/events`)
             .then((res) => {
                 if (!res.ok) {
                     throw new Error("Failed to fetch events from backend");
@@ -24,7 +25,7 @@ function Events() {
                 setError(null);
             })
             .catch((err) => {
-                setError(err.message || "Could not connect to http://localhost:5000/api/events");
+                setError(err.message || "Could not connect to the events server");
                 setLoading(false);
             });
     };
@@ -50,7 +51,7 @@ function Events() {
         <main className="events-page">
             <h1>TechFest Events</h1>
             <p style={{ marginBottom: "25px", color: "#666" }}>
-                Live events powered by MongoDB backend (<code>http://localhost:5000/api/events</code>)
+                Live events powered by the MongoDB backend
             </p>
 
             <div className="search-container">

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { API_URL } from "../config";
 
 function Registration() {
     const [formData, setFormData] = useState({
@@ -54,7 +55,7 @@ function Registration() {
         if (Object.keys(newErrors).length === 0) {
             setLoading(true);
             try {
-                const response = await fetch("http://localhost:5000/api/auth/register", {
+                const response = await fetch(`${API_URL}/api/auth/register`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -75,7 +76,7 @@ function Registration() {
                 setIsSubmitted(true);
                 setLoading(false);
             } catch (err) {
-                setServerError("Could not connect to backend server. Make sure port 5000 is running.");
+                setServerError("Could not connect to the server. Please try again.");
                 setLoading(false);
             }
         }

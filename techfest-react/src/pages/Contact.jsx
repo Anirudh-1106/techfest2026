@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_URL } from "../config";
 
 function Contact() {
     const [name, setName] = useState("");
@@ -12,11 +13,10 @@ function Contact() {
         }
     ]);
     const [statusMsg, setStatusMsg] = useState("");
-    const [isVulnerableMode, setIsVulnerableMode] = useState(false);
 
     // Fetch live feedback from backend
     useEffect(() => {
-        fetch("http://localhost:5000/api/feedback")
+        fetch(`${API_URL}/api/feedback`)
             .then((res) => (res.ok ? res.json() : []))
             .then((data) => {
                 if (Array.isArray(data) && data.length > 0) {
@@ -41,8 +41,9 @@ function Contact() {
         };
 
         try {
-            const res = await fetch("http://localhost:5000/api/feedback", {
+            const res = await fetch(`${API_URL}/api/feedback`, {
                 method: "POST",
+                credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(newFeedback)
             });
@@ -52,14 +53,13 @@ function Contact() {
                 setFeedbacks([saved, ...feedbacks]);
                 setStatusMsg("Feedback submitted successfully!");
             } else {
-                // Fallback to local state if backend validation triggers
-                setFeedbacks([{ _id: Date.now().toString(), ...newFeedback, createdAt: new Date().toISOString() }, ...feedbacks]);
-                setStatusMsg("Feedback added locally.");
+                const data = await res.json().catch(() => ({}));
+                setStatusMsg(data.errors?.[0]?.msg || data.message || "Feedback could not be saved.");
+                return;
             }
         } catch (err) {
-            // Local fallback
-            setFeedbacks([{ _id: Date.now().toString(), ...newFeedback, createdAt: new Date().toISOString() }, ...feedbacks]);
-            setStatusMsg("Feedback added locally (offline mode).");
+            setStatusMsg("Could not reach the server. Please try again.");
+            return;
         }
 
         setName("");
@@ -73,7 +73,7 @@ function Contact() {
                 Have questions or feedback about TechFest 2026? Get in touch with our organizing team.
             </p>
 
-            <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "35px" }}>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "35px" }}>
                 <div style={{ background: "#f8f9fa", padding: "18px", borderRadius: "8px", border: "1px solid #e9ecef" }}>
                     <h3 style={{ marginTop: 0 }}>Contact Details</h3>
                     <p><strong>Email:</strong> techfest2026@example.com</p>
@@ -86,37 +86,18 @@ function Contact() {
                 </div>
             </section>
 
-            {/* OWASP XSS Demonstration Section */}
+            {/* Feedback Section */}
             <section style={{ background: "#fff", border: "1px solid #ddd", borderRadius: "10px", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", marginBottom: "15px", gap: "10px" }}>
                     <h2 style={{ margin: 0, fontSize: "1.3rem" }}>💬 Participant Feedback Box</h2>
                     
-                    {/* Security Toggle for Lab Demonstration */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: isVulnerableMode ? "#d9534f" : "#28a745" }}>
-                            {isVulnerableMode ? "⚠️ Mode: Vulnerable (Unsafe HTML Render)" : "🛡️ Mode: Protected (Plain Text Escaped + Helmet)"}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => setIsVulnerableMode(!isVulnerableMode)}
-                            style={{
-                                padding: "5px 12px",
-                                fontSize: "0.8rem",
-                                borderRadius: "4px",
-                                border: "1px solid #ccc",
-                                cursor: "pointer",
-                                background: isVulnerableMode ? "#f8d7da" : "#d4edda",
-                                color: isVulnerableMode ? "#721c24" : "#155724"
-                            }}
-                            title="Toggle between vulnerable HTML rendering and secure text escaping for Experiment 5 demonstration"
-                        >
-                            Switch to {isVulnerableMode ? "Protected" : "Vulnerable"}
-                        </button>
-                    </div>
+                    <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#1e7e34" }}>
+                        🛡️ Comments are shown as plain text
+                    </span>
                 </div>
 
                 <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "20px" }}>
-                    Try submitting an XSS test payload such as <code>&lt;img src=x onerror=&quot;alert('hi')&quot;&gt;</code> or <code>&lt;script&gt;alert('hi')&lt;/script&gt;</code> to test the security defense.
+                    Tell us what you liked or what we can improve.
                 </p>
 
                 {statusMsg && (
@@ -127,8 +108,9 @@ function Contact() {
 
                 <form onSubmit={handleFeedbackSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "25px" }}>
                     <div>
-                        <label style={{ display: "block", marginBottom: "4px", fontWeight: "bold", fontSize: "0.9rem" }}>Your Name</label>
+                        <label htmlFor="feedback-name" style={{ display: "block", marginBottom: "4px", fontWeight: "bold", fontSize: "0.9rem" }}>Your Name</label>
                         <input
+                            id="feedback-name"
                             type="text"
                             placeholder="e.g. Alex"
                             value={name}
@@ -138,11 +120,12 @@ function Contact() {
                     </div>
 
                     <div>
-                        <label style={{ display: "block", marginBottom: "4px", fontWeight: "bold", fontSize: "0.9rem" }}>Feedback Message</label>
+                        <label htmlFor="feedback-box" style={{ display: "block", marginBottom: "4px", fontWeight: "bold", fontSize: "0.9rem" }}>Feedback Message</label>
                         <textarea
                             id="feedback-box"
                             rows={3}
-                            placeholder="Type feedback or XSS test payload here..."
+                            placeholder="Type your feedback here..."
+                            maxLength={500}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ccc", fontFamily: "inherit" }}
@@ -185,18 +168,10 @@ function Contact() {
                                 </small>
                             </div>
 
-                            {/* Vulnerable vs Protected Rendering Demonstration */}
-                            {isVulnerableMode ? (
-                                <div
-                                    className="vulnerable-comment"
-                                    dangerouslySetInnerHTML={{ __html: item.comment }}
-                                    style={{ color: "#d9534f" }}
-                                />
-                            ) : (
-                                <p className="safe-comment" style={{ margin: 0, color: "#444", wordBreak: "break-word" }}>
-                                    {item.comment}
-                                </p>
-                            )}
+                            {/* Rendered as text: React escapes < > & so HTML/scripts never run */}
+                            <p className="safe-comment" style={{ margin: 0, color: "#444", wordBreak: "break-word" }}>
+                                {item.comment}
+                            </p>
                         </div>
                     ))}
                 </div>
