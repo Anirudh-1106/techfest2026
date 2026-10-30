@@ -27,7 +27,7 @@ Prepare the TechFest 2026 Portal for production deployment by implementing secur
 ![Architecture](screenshots/arch01_architecture.png)
 
 ```
-User Browser ──HTTPS──▶ React (Netlify) ──HTTPS /api + httpOnly cookie──▶ Express API (Render) ──TLS──▶ MongoDB Atlas
+User Browser ──HTTPS──▶ Netlify: React app + /api proxy ──HTTPS──▶ Express API (Render) ──TLS──▶ MongoDB Atlas
                                    ▲                                              ▲
                                    └──── auto-deploy on push to main ─────────────┘
                      GitHub repo ──▶ GitHub Actions CI (tests + lint + build)
@@ -44,8 +44,8 @@ User Browser ──HTTPS──▶ React (Netlify) ──HTTPS /api + httpOnly co
 
 | Part | URL |
 | --- | --- |
-| Frontend (Netlify) | _to be added after deployment_ |
-| Backend API (Render) | _to be added after deployment_ — health check: `/api/health` |
+| Frontend (Netlify) | **https://techfest2026-anirudh.netlify.app** |
+| Backend API (Render) | **https://techfest2026-api-uv7o.onrender.com** — health check: [`/api/health`](https://techfest2026-api-uv7o.onrender.com/api/health), data: [`/api/events`](https://techfest2026-api-uv7o.onrender.com/api/events) |
 | Database | MongoDB Atlas cluster (connection string is kept only in Render's environment settings) |
 | Source code | https://github.com/Anirudh-1106/techfest2026 |
 | CI runs | https://github.com/Anirudh-1106/techfest2026/actions |
@@ -69,7 +69,7 @@ To demonstrate each attack safely, a separate **insecure test copy** of the proj
 - A `requireStrings()` check returns 400 unless `email`/`password`/`name` are plain strings (`routes/auth.js`).
 - `express-validator` checks the email format and password length, and limits feedback to 500 characters.
 - Passwords are hashed with **bcrypt** and compared with `bcrypt.compare`, never inside the query.
-- `express-rate-limit` allows 10 login attempts per 15 minutes per IP (slows brute force, OWASP A07).
+- `express-rate-limit` allows 10 **failed** logins per 15 minutes per account email (slows brute force, OWASP A07). It is keyed by email, not IP, because all production traffic reaches Render through the Netlify proxy.
 - The JSON body limit is `10kb`.
 
 **After** — the same payloads are rejected with 400 before they reach MongoDB:
@@ -117,7 +117,7 @@ To demonstrate each attack safely, a separate **insecure test copy** of the proj
 **Cross-Site Request Forgery** happens when a malicious website makes the victim's browser send a request (for example "register me for this event" or "post this feedback") to our API. The browser attaches the victim's login cookie automatically, so the server thinks the real user sent it.
 
 - **`SameSite=Lax/Strict`** tells the browser *not* to attach the cookie to requests that start on another site, so the forged request arrives without a login and fails. Locally the cookie uses `SameSite=Lax`.
-- In production the frontend (`*.netlify.app`) and API (`*.onrender.com`) are on **different sites**, so the cookie must be `SameSite=None; Secure` for login to work. CSRF is then blocked by two server-side checks:
+- In production the browser talks only to `techfest2026-anirudh.netlify.app`. Netlify forwards `/api/*` to Render (rule in `public/_redirects`), so the login cookie is a **first-party** cookie of our own site. The cookie is still sent as `SameSite=None; Secure`, because the API can also be called directly. CSRF is blocked by two server-side checks:
   1. **CORS allow-list**: only `FRONTEND_URL` may make credentialed requests.
   2. **Origin check** (`middleware/csrf.js`): any POST/PUT/DELETE whose `Origin` header is not our frontend gets **403**. This is shown in the last command of the "Injection after" screenshot (`Origin: https://evil.example.com` → `Origin not allowed`).
 
@@ -131,7 +131,7 @@ To demonstrate each attack safely, a separate **insecure test copy** of the proj
 | Stored XSS | text rendering, CSP (Helmet + Netlify) | sec03 → sec04 |
 | Token theft via XSS | httpOnly cookie, no localStorage | sec05/07 → sec06/08 |
 | CSRF | SameSite, CORS allow-list, Origin check | sec02, Jest |
-| Brute-force login | express-rate-limit | `X-RateLimit-*` headers |
+| Brute-force login | express-rate-limit (10 failed logins / 15 min per account) | `X-RateLimit-*` headers |
 | Clickjacking / MIME sniffing | `X-Frame-Options`, `frame-ancestors`, `nosniff` | Jest |
 
 ---
@@ -178,7 +178,33 @@ To demonstrate each attack safely, a separate **insecure test copy** of the proj
 | **Netlify** | Base directory `techfest-react`, build `npm run build`, publish `dist` (from `netlify.toml`). Environment: `VITE_API_URL=<Render URL>` |
 | **SPA routing** | `techfest-react/public/_redirects` → `/*  /index.html  200`, so refreshing `/events` or `/gallery` works |
 
-_Live screenshots (HTTPS lock, registration stored in Atlas) are added after deployment — see section 9._
+| **Netlify** (after first deploy) | `VITE_API_URL=https://techfest2026-anirudh.netlify.app` (the site's own `/api` proxy) and `FRONTEND_URL=https://techfest2026-anirudh.netlify.app` on Render |
+
+**Why the `/api` proxy was added.** After the first deploy, the frontend called `onrender.com` directly. Testing showed that Safari, iPhone and iPad logged the user out on every refresh, because WebKit blocks cookies from another site (third-party cookies). Routing `/api/*` through Netlify (`/api/*  https://techfest2026-api-uv7o.onrender.com/api/:splat  200`) made the cookie first-party. After this change, every browser keeps the session (section 9).
+
+### Live verification
+
+The live site is served over HTTPS with a valid certificate. Newer Chrome versions show a "site settings" icon in the address bar where the padlock used to be.
+
+![Live home](screenshots/live01_https_home.png)
+![Live events](screenshots/live02_https_events.png)
+![Live API](screenshots/live03_api_events.png)
+
+Security checks repeated against the live API: injection rejected, cross-site POST blocked, cookie `HttpOnly; Secure; SameSite=None`, HSTS header present.
+
+![Live security](screenshots/live04_security_checks.png)
+
+A new account registered on the live site appears in the Atlas `users` collection with a bcrypt-hashed password (screenshot `live05_atlas_user.png`).
+
+**Deployed pages (desktop Chrome):**
+
+![Home](screenshots/live_site01_home.png)
+![Events](screenshots/live_site02_events.png)
+![Gallery](screenshots/live_site03_gallery.png)
+![Contact](screenshots/live_site04_contact.png)
+![Register](screenshots/live_site05_register.png)
+![Logged in](screenshots/live_site06_logged_in.png)
+![404 page](screenshots/live_site07_404.png)
 
 ## 7. Performance Optimisation (Question 6)
 
@@ -205,7 +231,9 @@ _Live screenshots (HTTPS lock, registration stored in Atlas) are added after dep
 
 ## 8. Analysis with Lighthouse and DevTools (Question 7)
 
-Lighthouse 12 (mobile emulation, simulated slow 4G), run on the production build. Saved reports: [`reports/lighthouse/`](reports/lighthouse).
+Lighthouse 12 (mobile emulation, simulated slow 4G). Saved reports: [`reports/lighthouse/`](reports/lighthouse) (local production build) and [`reports/lighthouse/live/`](reports/lighthouse/live) (deployed site).
+
+### 8.1 Local production build (before and after optimisation)
 
 | Page | Performance | Accessibility | Best Practices | SEO |
 | --- | --- | --- | --- | --- |
@@ -235,6 +263,32 @@ Lighthouse 12 (mobile emulation, simulated slow 4G), run on the production build
 ![LH after home](screenshots/lh03_after_home.png)
 ![LH after gallery](screenshots/lh04_after_gallery.png)
 
+### 8.2 Deployed site (first deploy vs. after fixing Lighthouse suggestions)
+
+| Live page (mobile) | Performance | Accessibility | Best Practices | SEO | LCP | CLS |
+| --- | --- | --- | --- | --- | --- | --- |
+| Home – first deploy | 94 | 100 | 93 | 100 | 2.5 s | 0 |
+| Home – after | **99** | 100 | 93 | 100 | **1.5 s** | 0 |
+| Gallery – first deploy | 95 | 100 | 93 | 100 | 2.5 s | 0 |
+| Gallery – after | **98** | 100 | 93 | 100 | **2.0 s** | 0 |
+| Events – first deploy | 93 | 90 | 93 | 100 | 2.6 s | 0.102 |
+| Events – after | **98** | **100** | 93 | 100 | **1.4 s** | **0** |
+| Home desktop – after | 100 | 100 | 93 | 100 | 0.4 s | 0 |
+
+Suggestions fixed on the live site:
+1. *Cumulative Layout Shift 0.102 on Events* — the footer moved down when the page chunk loaded. The loading placeholder now reserves the full screen height.
+2. *Select element does not have an associated label* → `aria-label` added on the category filter and the search box.
+3. *Heading elements are not in sequentially-descending order* → added a screen-reader-only `<h2>` before the event cards.
+4. *Preconnect to required origins* → `<link rel="preconnect">` for the announcements API. The backend is now same-origin through the proxy, so no extra connection is needed.
+
+Best Practices stays at 93 for one reason: Netlify injects its own toolbar script (`/.netlify/scripts/hud`) into the page, and our Content-Security-Policy (`script-src 'self'`) blocks it. That console error shows the CSP is working.
+
+![Live LH before home](screenshots/live_lh01_before_home.png)
+![Live LH before events](screenshots/live_lh03_before_events.png)
+![Live LH after home](screenshots/live_lh04_after_home.png)
+![Live LH after gallery](screenshots/live_lh05_after_gallery.png)
+![Live LH after events](screenshots/live_lh06_after_events.png)
+
 **Observations**
 - Before optimisation, the Gallery page downloaded 37 MB. On a mobile connection the hackathon image took almost two minutes to appear. Images were over 99 % of the page weight.
 - JavaScript is now the largest resource (~76 KB gzip, mostly React and React Router). The remaining Lighthouse hint, "reduce unused JavaScript (~33 KB)", comes from these library bundles.
@@ -243,25 +297,34 @@ Lighthouse 12 (mobile emulation, simulated slow 4G), run on the production build
 
 ## 9. Cross-Device and Cross-Browser Testing (Question 8)
 
-An automated Playwright check opened every route directly (including a hard refresh of each route and an unknown URL for the 404 page). It confirmed the events load from the API, logged in, refreshed the page to confirm the session persists, and counted JavaScript errors. This ran in Chromium (Chrome), Firefox and WebKit (Safari) engines, at desktop sizes and on emulated iPhone 13, Pixel 7 and iPad Mini.
+An automated Playwright check ran against the **live site** in Chromium (Chrome), Firefox and WebKit (Safari) engines, at desktop sizes and on emulated iPhone 13, Pixel 7 and iPad Mini. For each one, it:
+- opened every route directly, including a refresh of each route and an unknown URL for the 404 page;
+- checked that the 4 events load from Atlas through the API;
+- logged in, then refreshed the page to confirm the session persists;
+- counted JavaScript errors.
 
-![Compatibility results](screenshots/local_dev00_compat_results.png)
+![Live compatibility results](screenshots/live_dev00_compat_results.png)
 
-| Device / browser | Screenshot |
-| --- | --- |
-| Chrome desktop – home, events, gallery, contact, register, logged in, 404 | `local_site01…07` |
-| Firefox desktop | ![](screenshots/local_dev01_firefox_home.png) |
-| Safari (WebKit) desktop | ![](screenshots/local_dev02_safari_gallery.png) |
-| iPhone 13 | ![](screenshots/local_dev03_iphone_home.png) ![](screenshots/local_dev04_iphone_events.png) |
-| Pixel 7 | ![](screenshots/local_dev05_pixel_gallery.png) ![](screenshots/local_dev06_pixel_contact.png) |
-| iPad Mini | ![](screenshots/local_dev07_ipad_home.png) |
+| Device / browser | Pages | Events from API | Login | Session after refresh | JS errors |
+| --- | --- | --- | --- | --- | --- |
+| Chrome desktop | 8/8 OK | 4 | OK | kept | 0 |
+| Firefox desktop | 8/8 OK | 4 | OK | kept | 0 |
+| Safari (WebKit) desktop | 8/8 OK | 4 | OK | kept | 0 |
+| iPhone 13 | 8/8 OK | 4 | OK | kept | 0 |
+| Pixel 7 | 8/8 OK | 4 | OK | kept | 0 |
+| iPad Mini | 8/8 OK | 4 | OK | kept | 0 |
 
-![Home](screenshots/local_site01_home.png)
-![Events](screenshots/local_site02_events.png)
-![Gallery](screenshots/local_site03_gallery.png)
-![Logged in](screenshots/local_site06_logged_in.png)
+On the first deploy the three WebKit rows showed *session after refresh: lost* (third-party cookie blocking). The `/api` proxy described in section 6 fixed this.
 
-_The same check is repeated against the live HTTPS site after deployment._
+| Firefox desktop | Safari desktop | iPad Mini |
+| --- | --- | --- |
+| ![](screenshots/live_dev01_firefox_home.png) | ![](screenshots/live_dev02_safari_gallery.png) | ![](screenshots/live_dev07_ipad_home.png) |
+
+| iPhone 13 – home | iPhone 13 – events | Pixel 7 – gallery | Pixel 7 – contact |
+| --- | --- | --- | --- |
+| ![](screenshots/live_dev03_iphone_home.png) | ![](screenshots/live_dev04_iphone_events.png) | ![](screenshots/live_dev05_pixel_gallery.png) | ![](screenshots/live_dev06_pixel_contact.png) |
+
+The same check was first run on the local build before deployment (`screenshots/local_*`).
 
 ---
 
