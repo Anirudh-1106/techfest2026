@@ -19,7 +19,8 @@ router.post(
   "/",
   [
     body("name").trim().notEmpty().withMessage("Name is required").escape(),
-    body("comment").trim().notEmpty().withMessage("Feedback comment is required")
+    body("comment").isString().trim().notEmpty().withMessage("Feedback comment is required")
+      .isLength({ max: 500 }).withMessage("Feedback must be under 500 characters")
   ],
   async (req, res, next) => {
     try {

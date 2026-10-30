@@ -13,6 +13,12 @@ function errorHandler(err, req, res, next) {
     });
   }
 
+  if (err.message === "Not allowed by CORS") {
+    return res.status(403).json({
+      message: "Origin not allowed"
+    });
+  }
+
   if (err.name === "CastError") {
     return res.status(400).json({
       message: "Invalid id"

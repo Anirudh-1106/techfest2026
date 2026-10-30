@@ -1,14 +1,38 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const rateLimit = require("express-rate-limit");
 const { body, validationResult } = require("express-validator");
 const User = require("../models/User");
+const cookieOptions = require("../config/cookie");
 
 const router = express.Router();
+
+// Only strings are accepted - blocks objects like { "$gt": "" } (NoSQL injection)
+function requireStrings(...fields) {
+  return (req, res, next) => {
+    for (const f of fields) {
+      if (typeof req.body[f] !== "string") {
+        return res.status(400).json({
+          message: "Invalid input types: " + fields.join(" and ") + " must be strings"
+        });
+      }
+    }
+    next();
+  };
+}
+
+// Slow down password guessing: 10 login attempts per 15 minutes per IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  message: { message: "Too many login attempts, try again later" }
+});
 
 // POST /api/auth/register
 router.post(
   "/register",
+  requireStrings("name", "email", "password"),
   [
     body("name").trim().notEmpty().withMessage("Name is required").escape(),
     body("email").isEmail().withMessage("Please provide a valid email address").normalizeEmail(),
@@ -54,15 +78,8 @@ router.post(
 // POST /api/auth/login
 router.post(
   "/login",
-  (req, res, next) => {
-    // Check if fields are strings before validator runs
-    if (typeof req.body.email !== "string" || typeof req.body.password !== "string") {
-      return res.status(400).json({
-        message: "Invalid input types: email and password must be strings"
-      });
-    }
-    next();
-  },
+  loginLimiter,
+  requireStrings("email", "password"),
   [
     body("email").trim().isEmail().withMessage("Valid email address is required").normalizeEmail(),
     body("password").notEmpty().withMessage("Password is required")
@@ -106,14 +123,9 @@ router.post(
         }
       );
 
-      // Secure Cookie Configuration
-      // httpOnly: true prevents client-side JS (XSS) from accessing the cookie
-      // secure: true ensures transmission solely over HTTPS in production
-      // sameSite: "lax" defends against Cross-Site Request Forgery (CSRF)
+      // Secure cookie: httpOnly + secure + sameSite (see config/cookie.js)
       res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        ...cookieOptions,
         maxAge: 3600000 // 1 hour
       });
 
@@ -129,13 +141,33 @@ router.post(
   }
 );
 
+// GET /api/auth/me - restore the session from the httpOnly cookie
+// Returns { user: null } when not logged in (no error for guests)
+router.get("/me", async (req, res, next) => {
+  try {
+    const token = req.cookies && req.cookies.token;
+    let payload = null;
+
+    try {
+      payload = token ? jwt.verify(token, process.env.JWT_SECRET) : null;
+    } catch {
+      payload = null;
+    }
+
+    if (!payload) {
+      return res.json({ user: null });
+    }
+
+    const user = await User.findById(payload.id).select("name role");
+    res.json({ user: user ? { name: user.name, role: user.role } : null });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/auth/logout
 router.post("/logout", (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax"
-  });
+  res.clearCookie("token", cookieOptions);
   res.json({ message: "Logged out successfully" });
 });
 
